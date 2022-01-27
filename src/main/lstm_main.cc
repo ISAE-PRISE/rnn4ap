@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	
 	std::string path_to_smarties_nn = "../";
 	//std::string log1_path  = path_to_smarties_nn + "datasets/px4/px4_quad_log_01.csv";
-	std::string log1_path  = "px4_quad_log_01.csv";
+	std::string log1_path  = path_to_smarties_nn + "datasets/px4/px4_quad_log_01.csv";
 	std::string log2_path  = path_to_smarties_nn + "datasets/px4/px4_quad_log_02.csv";
 	std::string log3_path  = path_to_smarties_nn + "datasets/px4/px4_quad_log_03.csv";
 	std::string log4_path  = path_to_smarties_nn + "datasets/px4/px4_quad_log_04.csv";
