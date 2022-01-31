@@ -26,6 +26,22 @@ goncalo.fontes-neves@student.isae-supaero.fr
 
 This project is distributed as an open-source software under GPL version 3.0
 
+## BibTeX Citation
+
+If you use our work in a scientific publication, please use this citation:
+
+```
+@unpublished{rnn4ap_ref,
+            year = {2021},
+           title = {Recurrent Neural Networks Analysis for Embedded Systems},
+       booktitle = {NCTA 2021 - 13th International Joint Conference on Neural Computation Theory and Applications},
+          author = {Gon{\cc}alo Fontes Neves and Jean-Baptiste Chaudron and Arnaud Dion},
+         address = {Virtual Event, FR},
+             url = {https://oatao.univ-toulouse.fr/28449/},
+        keywords = {Deep Learning - RNN - GRU - LSTM - Embedded Systems}
+}
+
+
 
 
 
