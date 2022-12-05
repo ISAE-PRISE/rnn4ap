@@ -74,4 +74,5 @@ INSTALL(TARGETS ${EXE_NAME3} RUNTIME DESTINATION bin)
 # -------------------------------------------------------------------
 # Copy datasets
 INSTALL(DIRECTORY ${CMAKE_SOURCE_DIR}/datasets/px4 DESTINATION datasets)
-#INSTALL(DIRECTORY ${CMAKE_SOURCE_DIR}/datasets/f16 DESTINATION datasets)
+INSTALL(DIRECTORY ${CMAKE_SOURCE_DIR}/datasets/imu DESTINATION datasets)
+INSTALL(DIRECTORY ${CMAKE_SOURCE_DIR}/src/pytorch DESTINATION .)
