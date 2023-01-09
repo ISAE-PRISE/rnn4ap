@@ -1,13 +1,12 @@
 # ---------------------------------------------------------------------
 # RNN4AP project
-# Copyright (C) 2021 ISAE
+# Copyright (C) 2022 ISAE
 # 
 # Purpose:
 # Evaluation of Recurrent Neural Networks for future Autopilot Systems
 #
 # Contact:
 # jean-baptiste.chaudron@isae-supaero.fr
-# goncalo.fontes-neves@student.isae-supaero.fr
 # ---------------------------------------------------------------------
 
 PROJECT(RNN4AP C CXX)
@@ -31,7 +30,21 @@ SET(CMAKE_CXX_FLAGS "-std=c++0x")
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/main)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/px4)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/rnn)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/imu)
 
+# -------------------------------------------------------------------
+# LSTM test executable
+SET(EXE_NAME1 IMU_TEST)
+SET(SRC_LIST1 	${CMAKE_SOURCE_DIR}/src/main/imu_test_main.cc
+				${CMAKE_SOURCE_DIR}/src/rnn/lstm_stk_flt.cc
+				${CMAKE_SOURCE_DIR}/src/rnn/gru_stk_flt.cc
+				${CMAKE_SOURCE_DIR}/src/rnn/weights_handler.cc
+				${CMAKE_SOURCE_DIR}/src/imu/imu_log_handler.cc
+				)
+				
+ADD_EXECUTABLE(${EXE_NAME1} ${SRC_LIST1})
+TARGET_LINK_LIBRARIES (${EXE_NAME1})
+INSTALL(TARGETS ${EXE_NAME1} RUNTIME DESTINATION bin)
 
 # -------------------------------------------------------------------
 # LSTM test executable

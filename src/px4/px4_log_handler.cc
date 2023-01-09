@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------
 // RNN4AP project
-// Copyright (C) 2021 ISAE
+// Copyright (C) 2021-2022 ISAE
 // 
 // Purpose:
 // Evaluation of Recurrent Neural Networks for future Autopilot Systems

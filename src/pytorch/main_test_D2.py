@@ -76,7 +76,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 is_cuda = torch.cuda.is_available()
 
 # Prepare dataset/loader (Note that this python scripts has to be called in the install folder not in the src...)
-dataframe = pd.read_csv('../datasets/imu/D1.csv',dtype = np.float32)
+dataframe = pd.read_csv('../datasets/imu/D2.csv',dtype = np.float32)
 
 #filters for csv data
 filtX = dataframe.columns.str.contains('ax')  | dataframe.columns.str.contains('ay') | dataframe.columns.str.contains('az') | dataframe.columns.str.contains('gx')  | dataframe.columns.str.contains('gy') | dataframe.columns.str.contains('gz') | dataframe.columns.str.contains('mx')  | dataframe.columns.str.contains('my') | dataframe.columns.str.contains('mz')
@@ -95,7 +95,7 @@ print("Y_numpy shape is ", Y_numpy.shape)
 
 X_numpy_filtered, Y_numpy_filtered = low_pass_filter(X_numpy, Y_numpy, 0.2)
 
-file = open("D1_filtered_low_pass.csv", mode="w")
+file = open("D2_filtered_low_pass.csv", mode="w")
 file.write("ax,ay,az,gx,gy,gz,mx,my,mz,ax_lp,ay_lp,az_lp,gx_lp,gy_lp,gz_lp,mx_lp,my_lp,mz_lp\n")
 for i in range(len(X_numpy)):
 	file.write(str(X_numpy[i][0]) + "," + str(X_numpy[i][1]) + "," + str(X_numpy[i][2]) + "," ) #ax, ay, az
@@ -118,7 +118,7 @@ X_numpy_scaled = scalerX.transform(X_numpy)
 Y_numpy_scaled = scalerY.transform(Y_numpy)
 print("X_numpy_scaled shape is ", X_numpy_scaled.shape)
 
-file = open("D1_scaled_pytorch.csv", mode="w")
+file = open("D2_scaled_pytorch.csv", mode="w")
 file.write("ax,ay,az,gx,gy,gz,mx,my,mz,phi,theta,psi\n")
 for i in range(len(X_numpy)):
 	file.write(str(X_numpy_scaled[i][0]) + "," + str(X_numpy_scaled[i][1]) + "," + str(X_numpy_scaled[i][2]) + "," ) #ax, ay, az
@@ -880,8 +880,22 @@ outputs_test_cpu_1_filtered, outputs_test_cpu_2_filtered = low_pass_filter(np.ar
 outputs_test_cpu_3_filtered, outputs_test_cpu_4_filtered = low_pass_filter(np.array(outputs_test_cpu_03), np.array(outputs_test_cpu_04), 0.2)
 
 
+file = open("D2_loss_report.csv", mode="w")
+file.write("epoch_id,")
+file.write("lstm_all_train,lstm_phi_train,lstm_theta_train,lstm_psi_train,")
+file.write("lstm_all_test,lstm_phi_test,lstm_theta_test,lstm_psi_test,")
+file.write("gru_all_train,gru_phi_train,gru_theta_train,gru_psi_train,")
+file.write("gru_all_test,gru_phi_test,gru_theta_test,gru_psi_test\n")
+for i in range(4):
+	file.write(str(i) + "," )
+	file.write(str(loss_train_list_lstm_all[i]) + "," + str(loss_train_list_lstm_phi[i]) + "," + str(loss_train_list_lstm_theta[i]) + "," + str(loss_train_list_lstm_psi[i]) + ",")
+	file.write(str(loss_test_list_lstm_all[i]) + "," + str(loss_test_list_lstm_phi[i]) + "," + str(loss_test_list_lstm_theta[i]) + "," + str(loss_test_list_lstm_psi[i]) + ",")
+	file.write(str(loss_train_list_gru_all[i]) + "," + str(loss_train_list_gru_phi[i]) + "," + str(loss_train_list_gru_theta[i]) + "," + str(loss_train_list_gru_psi[i]) + ",")
+	file.write(str(loss_test_list_gru_all[i]) + "," + str(loss_test_list_gru_phi[i]) + "," + str(loss_test_list_gru_theta[i]) + "," + str(loss_test_list_gru_psi[i]) + "\n")
+file.close()
+
 # write results in a csv file
-file = open("D1_results_lstm_gru.csv", mode="w")
+file = open("D2_results_lstm_gru.csv", mode="w")
 file.write("ref_phi,ref_theta,ref_psi,")
 file.write("lstm_all_phi_all_epoch_01,lstm_all_theta_epoch_01,lstm_all_psi_epoch_01,")
 file.write("lstm_all_phi_epoch_02,lstm_all_theta_epoch_02,lstm_all_psi_epoch_02,")
@@ -970,20 +984,6 @@ for i, (X_test, Y_test) in enumerate(test_loader):
 	file.write(str(outputs_test_cpu_2_filtered[i][0]) + "," + str(outputs_test_cpu_2_filtered[i][1]) + "," + str(outputs_test_cpu_2_filtered[i][2]) + "," ) 
 	file.write(str(outputs_test_cpu_3_filtered[i][0]) + "," + str(outputs_test_cpu_3_filtered[i][1]) + "," + str(outputs_test_cpu_3_filtered[i][2]) + "," ) 
 	file.write(str(outputs_test_cpu_4_filtered[i][0]) + "," + str(outputs_test_cpu_4_filtered[i][1]) + "," + str(outputs_test_cpu_4_filtered[i][2]) + "\n" )
-file.close()
-
-file = open("D1_loss_report.csv", mode="w")
-file.write("epoch_id,")
-file.write("lstm_all_train,lstm_phi_train,lstm_theta_train,lstm_psi_train,")
-file.write("lstm_all_test,lstm_phi_test,lstm_theta_test,lstm_psi_test,")
-file.write("gru_all_train,gru_phi_train,gru_theta_train,gru_psi_train,")
-file.write("gru_all_test,gru_phi_test,gru_theta_test,gru_psi_test\n")
-for i in range(num_epochs):
-	file.write(str(i) + "," )
-	file.write(str(loss_train_list_lstm_all[i]) + "," + str(loss_train_list_lstm_phi[i]) + "," + str(loss_train_list_lstm_theta[i]) + "," + str(loss_train_list_lstm_psi[i]) + ",")
-	file.write(str(loss_test_list_lstm_all[i]) + "," + str(loss_test_list_lstm_phi[i]) + "," + str(loss_test_list_lstm_theta[i]) + "," + str(loss_test_list_lstm_psi[i]) + ",")
-	file.write(str(loss_train_list_gru_all[i]) + "," + str(loss_train_list_gru_phi[i]) + "," + str(loss_train_list_gru_theta[i]) + "," + str(loss_train_list_gru_psi[i]) + ",")
-	file.write(str(loss_test_list_gru_all[i]) + "," + str(loss_test_list_gru_phi[i]) + "," + str(loss_test_list_gru_theta[i]) + "," + str(loss_test_list_gru_psi[i]) + "\n")
 file.close()
 
 # get some values on errors etc...

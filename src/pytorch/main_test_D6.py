@@ -33,8 +33,8 @@ seq_len = 5 #timesteps
 
 # Rnn configuration
 input_dim = 9
-hidden_dim = 20
-layer_dim = 3 # number of hidden layers with a size of hidden_dim then you should add the output Linear Layer
+hidden_dim = 50
+layer_dim = 2 # number of hidden layers with a size of hidden_dim then you should add the output Linear Layer
 output_dim = 3
 
 # ----------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 is_cuda = torch.cuda.is_available()
 
 # Prepare dataset/loader (Note that this python scripts has to be called in the install folder not in the src...)
-dataframe = pd.read_csv('../datasets/imu/D1.csv',dtype = np.float32)
+dataframe = pd.read_csv('../datasets/imu/D6.csv',dtype = np.float32)
 
 #filters for csv data
 filtX = dataframe.columns.str.contains('ax')  | dataframe.columns.str.contains('ay') | dataframe.columns.str.contains('az') | dataframe.columns.str.contains('gx')  | dataframe.columns.str.contains('gy') | dataframe.columns.str.contains('gz') | dataframe.columns.str.contains('mx')  | dataframe.columns.str.contains('my') | dataframe.columns.str.contains('mz')
@@ -95,7 +95,7 @@ print("Y_numpy shape is ", Y_numpy.shape)
 
 X_numpy_filtered, Y_numpy_filtered = low_pass_filter(X_numpy, Y_numpy, 0.2)
 
-file = open("D1_filtered_low_pass.csv", mode="w")
+file = open("D6_filtered.csv", mode="w")
 file.write("ax,ay,az,gx,gy,gz,mx,my,mz,ax_lp,ay_lp,az_lp,gx_lp,gy_lp,gz_lp,mx_lp,my_lp,mz_lp\n")
 for i in range(len(X_numpy)):
 	file.write(str(X_numpy[i][0]) + "," + str(X_numpy[i][1]) + "," + str(X_numpy[i][2]) + "," ) #ax, ay, az
@@ -110,22 +110,13 @@ file.close()
 # scalerY = preprocessing.Normalizer().fit(Y_numpy) #MinMaxScaler, Normalizer
 
 #scalerX = preprocessing.MinMaxScaler(feature_range=(-1, 1)).fit(X_numpy_filtered) 
-scalerX = preprocessing.MinMaxScaler(feature_range=(-0.9, 0.9)).fit(X_numpy) 
-scalerY = preprocessing.MinMaxScaler(feature_range=(-0.9, 0.9)).fit(Y_numpy) 
+scalerX = preprocessing.MinMaxScaler(feature_range=(-1, 1)).fit(X_numpy) 
+scalerY = preprocessing.MinMaxScaler(feature_range=(-1, 1)).fit(Y_numpy) 
 
 # scale data for inputs
 X_numpy_scaled = scalerX.transform(X_numpy)
 Y_numpy_scaled = scalerY.transform(Y_numpy)
 print("X_numpy_scaled shape is ", X_numpy_scaled.shape)
-
-file = open("D1_scaled_pytorch.csv", mode="w")
-file.write("ax,ay,az,gx,gy,gz,mx,my,mz,phi,theta,psi\n")
-for i in range(len(X_numpy)):
-	file.write(str(X_numpy_scaled[i][0]) + "," + str(X_numpy_scaled[i][1]) + "," + str(X_numpy_scaled[i][2]) + "," ) #ax, ay, az
-	file.write(str(X_numpy_scaled[i][3]) + "," + str(X_numpy_scaled[i][4]) + "," + str(X_numpy_scaled[i][5]) + "," ) #gx, gy, gz
-	file.write(str(X_numpy_scaled[i][6]) + "," + str(X_numpy_scaled[i][7]) + "," + str(X_numpy_scaled[i][8]) + "," ) #mx, my, mz
-	file.write(str(Y_numpy_scaled[i][0]) + "," + str(Y_numpy_scaled[i][1]) + "," + str(Y_numpy_scaled[i][2]) + "\n" ) #phi, theta, psi
-file.close()
 
 X_numpy_seq, Y_numpy_seq = sliding_windows(X_numpy_scaled, Y_numpy_scaled, seq_len) #here we can used scaled data or not
 print("X_numpy_seq type is ", type(X_numpy_seq))
@@ -193,7 +184,7 @@ error_gru_theta = nn.MSELoss()
 error_gru_psi = nn.MSELoss()
 
 # OPTIMIZERS
-learning_rate = 0.0005
+learning_rate = 0.005
 #optimizer_lstm_all = torch.optim.SGD(lstm_all_model_instance.parameters(), lr=learning_rate, momentum=0.9) 
 #optimizer_gru  = torch.optim.SGD(gru_model_instance.parameters(), lr=learning_rate, momentum=0.9) 
 
@@ -382,24 +373,7 @@ outputs_test_cpu_08 = []
 outputs_test_cpu_09 = []
 outputs_test_cpu_10 = []
 
-loss_train_list_lstm_all = []
-loss_train_list_lstm_phi = []
-loss_train_list_lstm_theta = []
-loss_train_list_lstm_psi = []
-loss_train_list_gru_all = []
-loss_train_list_gru_phi = []
-loss_train_list_gru_theta = []
-loss_train_list_gru_psi = []
-loss_test_list_lstm_all = []
-loss_test_list_lstm_phi = []
-loss_test_list_lstm_theta = []
-loss_test_list_lstm_psi = []
-loss_test_list_gru_all = []
-loss_test_list_gru_phi = []
-loss_test_list_gru_theta = []
-loss_test_list_gru_psi = []
-
-loss_test_list = []
+loss_list = []
 iteration_list = []
 accuracy_list = []
 epoch_counter = 1
@@ -456,10 +430,10 @@ for epoch in range(num_epochs):
 		loss_lstm_theta = error_lstm_theta(outputs_lstm_theta,torch.index_select(Y,1,torch.tensor([1]).cuda()))
 		loss_lstm_psi = error_lstm_psi(outputs_lstm_psi,torch.index_select(Y,1,torch.tensor([2]).cuda()))
 		
-		total_train_lstm_all += loss_lstm_all.data.item()
-		total_train_lstm_phi += loss_lstm_phi.data.item()
-		total_train_lstm_theta += loss_lstm_theta.data.item()
-		total_train_lstm_psi += loss_lstm_psi.data.item()
+		total_train_lstm_all += loss_lstm_all
+		total_train_lstm_phi += loss_lstm_phi
+		total_train_lstm_theta += loss_lstm_theta
+		total_train_lstm_psi += loss_lstm_psi
 
 		# Calculate MSE Loss for GRU
 		loss_gru_all = error_lstm_all(outputs_gru_all,Y)
@@ -467,10 +441,10 @@ for epoch in range(num_epochs):
 		loss_gru_theta = error_lstm_theta(outputs_gru_theta,torch.index_select(Y,1,torch.tensor([1]).cuda()))
 		loss_gru_psi = error_lstm_psi(outputs_gru_psi,torch.index_select(Y,1,torch.tensor([2]).cuda()))
 		
-		total_train_gru_all += loss_gru_all.data.item()
-		total_train_gru_phi += loss_gru_phi.data.item()
-		total_train_gru_theta += loss_gru_theta.data.item()
-		total_train_gru_psi += loss_gru_psi.data.item()
+		total_train_gru_all += loss_gru_all
+		total_train_gru_phi += loss_gru_phi
+		total_train_gru_theta += loss_gru_theta
+		total_train_gru_psi += loss_gru_psi
 
 		iter_train += 1
 
@@ -506,16 +480,6 @@ for epoch in range(num_epochs):
 	total_train_gru_phi = total_train_gru_phi/iter_train
 	total_train_gru_theta = total_train_gru_theta/iter_train
 	total_train_gru_psi = total_train_gru_psi/iter_train
-
-	loss_train_list_lstm_all.append(total_train_lstm_all)
-	loss_train_list_lstm_phi.append(total_train_lstm_phi)
-	loss_train_list_lstm_theta.append(total_train_lstm_theta)
-	loss_train_list_lstm_psi.append(total_train_lstm_psi)
-
-	loss_train_list_gru_all.append(total_train_gru_all)
-	loss_train_list_gru_phi.append(total_train_gru_phi)
-	loss_train_list_gru_theta.append(total_train_gru_theta)
-	loss_train_list_gru_psi.append(total_train_gru_psi)
 
 	if epoch_counter % 1 == 0:
 		# Calculate Accuracy         
@@ -814,10 +778,10 @@ for epoch in range(num_epochs):
 			loss_test_lstm_theta = error_lstm_theta(outputs_lstm_theta.data,torch.index_select(Y_test,1,torch.tensor([1]).cuda()))
 			loss_test_lstm_psi = error_lstm_psi(outputs_lstm_psi.data,torch.index_select(Y_test,1,torch.tensor([2]).cuda()))
 			
-			total_test_lstm_all += loss_test_lstm_all.data.item()
-			total_test_lstm_phi += loss_test_lstm_phi.data.item()
-			total_test_lstm_theta += loss_test_lstm_theta.data.item()
-			total_test_lstm_psi += loss_test_lstm_psi.data.item()
+			total_test_lstm_all += loss_test_lstm_all
+			total_test_lstm_phi += loss_test_lstm_phi
+			total_test_lstm_theta += loss_test_lstm_theta
+			total_test_lstm_psi += loss_test_lstm_psi
 
 			# Calculate MSE Loss for GRU
 			loss_test_gru_all = error_lstm_all(outputs_gru_all.data,Y_test)
@@ -825,12 +789,10 @@ for epoch in range(num_epochs):
 			loss_test_gru_theta = error_lstm_theta(outputs_gru_theta.data,torch.index_select(Y_test,1,torch.tensor([1]).cuda()))
 			loss_test_gru_psi = error_lstm_psi(outputs_gru_psi.data,torch.index_select(Y_test,1,torch.tensor([2]).cuda()))
 			
-			total_test_gru_all += loss_test_gru_all.data.item()
-			total_test_gru_phi += loss_test_gru_phi.data.item()
-			total_test_gru_theta += loss_test_gru_theta.data.item()
-			total_test_gru_psi += loss_test_gru_psi.data.item()
-
-			
+			total_test_gru_all += loss_test_gru_all
+			total_test_gru_phi += loss_test_gru_phi
+			total_test_gru_theta += loss_test_gru_theta
+			total_test_gru_psi += loss_test_gru_psi
 
 			t_vect.append(iter_test)
 			iter_test += 1
@@ -849,16 +811,6 @@ for epoch in range(num_epochs):
 		total_test_gru_phi = total_test_gru_phi/iter_test
 		total_test_gru_theta = total_test_gru_theta/iter_test
 		total_test_gru_psi = total_test_gru_psi/iter_test
-
-		loss_test_list_lstm_all.append(total_test_lstm_all)
-		loss_test_list_lstm_phi.append(total_test_lstm_phi)
-		loss_test_list_lstm_theta.append(total_test_lstm_theta)
-		loss_test_list_lstm_psi.append(total_test_lstm_psi)
-
-		loss_test_list_gru_all.append(total_test_gru_all)
-		loss_test_list_gru_phi.append(total_test_gru_phi)
-		loss_test_list_gru_theta.append(total_test_gru_theta)
-		loss_test_list_gru_psi.append(total_test_gru_psi)
 
 		#loss_list.append(loss.data.item())
 		#iteration_list.append(epoch_counter)
@@ -881,7 +833,7 @@ outputs_test_cpu_3_filtered, outputs_test_cpu_4_filtered = low_pass_filter(np.ar
 
 
 # write results in a csv file
-file = open("D1_results_lstm_gru.csv", mode="w")
+file = open("D6_results_lstm_gru.csv", mode="w")
 file.write("ref_phi,ref_theta,ref_psi,")
 file.write("lstm_all_phi_all_epoch_01,lstm_all_theta_epoch_01,lstm_all_psi_epoch_01,")
 file.write("lstm_all_phi_epoch_02,lstm_all_theta_epoch_02,lstm_all_psi_epoch_02,")
@@ -926,6 +878,7 @@ file.write("gru_phi_epoch_10,gru_theta_epoch_10,gru_psi_epoch_10,")
 file.write("lstm_phi_0_lp,lstm_theta_0_lp,lstm_psi_0_lp,lstm_phi_1_lp,lstm_theta_1_lp,lstm_psi_1_lp,lstm_phi_2_lp,lstm_theta_2_lp,lstm_psi_2_lp,lstm_phi_3_lp,lstm_theta_3_lp,lstm_psi_3_lp\n")
 for i, (X_test, Y_test) in enumerate(test_loader):
 	file.write(str(ref_phi[i]) + "," + str(ref_theta[i]) + "," + str(ref_psi[i]) + "," )
+
 	file.write(str(lstm_all_phi_01[i]) + "," + str(lstm_all_theta_01[i]) + "," + str(lstm_all_psi_01[i]) + ",")
 	file.write(str(lstm_all_phi_02[i]) + "," + str(lstm_all_theta_02[i]) + "," + str(lstm_all_psi_02[i]) + ",")
 	file.write(str(lstm_all_phi_03[i]) + "," + str(lstm_all_theta_03[i]) + "," + str(lstm_all_psi_03[i]) + ",")
@@ -971,301 +924,3 @@ for i, (X_test, Y_test) in enumerate(test_loader):
 	file.write(str(outputs_test_cpu_3_filtered[i][0]) + "," + str(outputs_test_cpu_3_filtered[i][1]) + "," + str(outputs_test_cpu_3_filtered[i][2]) + "," ) 
 	file.write(str(outputs_test_cpu_4_filtered[i][0]) + "," + str(outputs_test_cpu_4_filtered[i][1]) + "," + str(outputs_test_cpu_4_filtered[i][2]) + "\n" )
 file.close()
-
-file = open("D1_loss_report.csv", mode="w")
-file.write("epoch_id,")
-file.write("lstm_all_train,lstm_phi_train,lstm_theta_train,lstm_psi_train,")
-file.write("lstm_all_test,lstm_phi_test,lstm_theta_test,lstm_psi_test,")
-file.write("gru_all_train,gru_phi_train,gru_theta_train,gru_psi_train,")
-file.write("gru_all_test,gru_phi_test,gru_theta_test,gru_psi_test\n")
-for i in range(num_epochs):
-	file.write(str(i) + "," )
-	file.write(str(loss_train_list_lstm_all[i]) + "," + str(loss_train_list_lstm_phi[i]) + "," + str(loss_train_list_lstm_theta[i]) + "," + str(loss_train_list_lstm_psi[i]) + ",")
-	file.write(str(loss_test_list_lstm_all[i]) + "," + str(loss_test_list_lstm_phi[i]) + "," + str(loss_test_list_lstm_theta[i]) + "," + str(loss_test_list_lstm_psi[i]) + ",")
-	file.write(str(loss_train_list_gru_all[i]) + "," + str(loss_train_list_gru_phi[i]) + "," + str(loss_train_list_gru_theta[i]) + "," + str(loss_train_list_gru_psi[i]) + ",")
-	file.write(str(loss_test_list_gru_all[i]) + "," + str(loss_test_list_gru_phi[i]) + "," + str(loss_test_list_gru_theta[i]) + "," + str(loss_test_list_gru_psi[i]) + "\n")
-file.close()
-
-# get some values on errors etc...
-error_lstm_all_phi_01 = np.array(lstm_all_phi_01) - np.array(ref_phi)
-error_lstm_all_phi_02 = np.array(lstm_all_phi_02) - np.array(ref_phi)
-error_lstm_all_phi_03 = np.array(lstm_all_phi_03) - np.array(ref_phi)
-error_lstm_all_phi_04 = np.array(lstm_all_phi_04) - np.array(ref_phi)
-error_lstm_all_phi_05 = np.array(lstm_all_phi_05) - np.array(ref_phi)
-error_lstm_all_phi_06 = np.array(lstm_all_phi_06) - np.array(ref_phi)
-error_lstm_all_phi_07 = np.array(lstm_all_phi_07) - np.array(ref_phi)
-error_lstm_all_phi_08 = np.array(lstm_all_phi_08) - np.array(ref_phi)
-error_lstm_all_phi_09 = np.array(lstm_all_phi_09) - np.array(ref_phi)
-error_lstm_all_phi_10 = np.array(lstm_all_phi_10) - np.array(ref_phi)
-
-error_lstm_all_theta_01 = np.array(lstm_all_theta_01) - np.array(ref_theta)
-error_lstm_all_theta_02 = np.array(lstm_all_theta_02) - np.array(ref_theta)
-error_lstm_all_theta_03 = np.array(lstm_all_theta_03) - np.array(ref_theta)
-error_lstm_all_theta_04 = np.array(lstm_all_theta_04) - np.array(ref_theta)
-error_lstm_all_theta_05 = np.array(lstm_all_theta_05) - np.array(ref_theta)
-error_lstm_all_theta_06 = np.array(lstm_all_theta_06) - np.array(ref_theta)
-error_lstm_all_theta_07 = np.array(lstm_all_theta_07) - np.array(ref_theta)
-error_lstm_all_theta_08 = np.array(lstm_all_theta_08) - np.array(ref_theta)
-error_lstm_all_theta_09 = np.array(lstm_all_theta_09) - np.array(ref_theta)
-error_lstm_all_theta_10 = np.array(lstm_all_theta_10) - np.array(ref_theta)
-
-error_lstm_all_psi_01 = np.array(lstm_all_psi_01) - np.array(ref_psi)
-error_lstm_all_psi_02 = np.array(lstm_all_psi_02) - np.array(ref_psi)
-error_lstm_all_psi_03 = np.array(lstm_all_psi_03) - np.array(ref_psi)
-error_lstm_all_psi_04 = np.array(lstm_all_psi_04) - np.array(ref_psi)
-error_lstm_all_psi_05 = np.array(lstm_all_psi_05) - np.array(ref_psi)
-error_lstm_all_psi_06 = np.array(lstm_all_psi_06) - np.array(ref_psi)
-error_lstm_all_psi_07 = np.array(lstm_all_psi_07) - np.array(ref_psi)
-error_lstm_all_psi_08 = np.array(lstm_all_psi_08) - np.array(ref_psi)
-error_lstm_all_psi_09 = np.array(lstm_all_psi_09) - np.array(ref_psi)
-error_lstm_all_psi_10 = np.array(lstm_all_psi_10) - np.array(ref_psi)
-
-error_gru_all_phi_01 = np.array(gru_all_phi_01) - np.array(ref_phi)
-error_gru_all_phi_02 = np.array(gru_all_phi_02) - np.array(ref_phi)
-error_gru_all_phi_03 = np.array(gru_all_phi_03) - np.array(ref_phi)
-error_gru_all_phi_04 = np.array(gru_all_phi_04) - np.array(ref_phi)
-error_gru_all_phi_05 = np.array(gru_all_phi_05) - np.array(ref_phi)
-error_gru_all_phi_06 = np.array(gru_all_phi_06) - np.array(ref_phi)
-error_gru_all_phi_07 = np.array(gru_all_phi_07) - np.array(ref_phi)
-error_gru_all_phi_08 = np.array(gru_all_phi_08) - np.array(ref_phi)
-error_gru_all_phi_09 = np.array(gru_all_phi_09) - np.array(ref_phi)
-error_gru_all_phi_10 = np.array(gru_all_phi_10) - np.array(ref_phi)
-
-error_gru_all_theta_01 = np.array(gru_all_theta_01) - np.array(ref_theta)
-error_gru_all_theta_02 = np.array(gru_all_theta_02) - np.array(ref_theta)
-error_gru_all_theta_03 = np.array(gru_all_theta_03) - np.array(ref_theta)
-error_gru_all_theta_04 = np.array(gru_all_theta_04) - np.array(ref_theta)
-error_gru_all_theta_05 = np.array(gru_all_theta_05) - np.array(ref_theta)
-error_gru_all_theta_06 = np.array(gru_all_theta_06) - np.array(ref_theta)
-error_gru_all_theta_07 = np.array(gru_all_theta_07) - np.array(ref_theta)
-error_gru_all_theta_08 = np.array(gru_all_theta_08) - np.array(ref_theta)
-error_gru_all_theta_09 = np.array(gru_all_theta_09) - np.array(ref_theta)
-error_gru_all_theta_10 = np.array(gru_all_theta_10) - np.array(ref_theta)
-
-error_gru_all_psi_01 = np.array(gru_all_psi_01) - np.array(ref_psi)
-error_gru_all_psi_02 = np.array(gru_all_psi_02) - np.array(ref_psi)
-error_gru_all_psi_03 = np.array(gru_all_psi_03) - np.array(ref_psi)
-error_gru_all_psi_04 = np.array(gru_all_psi_04) - np.array(ref_psi)
-error_gru_all_psi_05 = np.array(gru_all_psi_05) - np.array(ref_psi)
-error_gru_all_psi_06 = np.array(gru_all_psi_06) - np.array(ref_psi)
-error_gru_all_psi_07 = np.array(gru_all_psi_07) - np.array(ref_psi)
-error_gru_all_psi_08 = np.array(gru_all_psi_08) - np.array(ref_psi)
-error_gru_all_psi_09 = np.array(gru_all_psi_09) - np.array(ref_psi)
-error_gru_all_psi_10 = np.array(gru_all_psi_10) - np.array(ref_psi)
-
-error_lstm_phi_01 = np.array(lstm_phi_01) - np.array(ref_phi)
-error_lstm_phi_02 = np.array(lstm_phi_02) - np.array(ref_phi)
-error_lstm_phi_03 = np.array(lstm_phi_03) - np.array(ref_phi)
-error_lstm_phi_04 = np.array(lstm_phi_04) - np.array(ref_phi)
-error_lstm_phi_05 = np.array(lstm_phi_05) - np.array(ref_phi)
-error_lstm_phi_06 = np.array(lstm_phi_06) - np.array(ref_phi)
-error_lstm_phi_07 = np.array(lstm_phi_07) - np.array(ref_phi)
-error_lstm_phi_08 = np.array(lstm_phi_08) - np.array(ref_phi)
-error_lstm_phi_09 = np.array(lstm_phi_09) - np.array(ref_phi)
-error_lstm_phi_10 = np.array(lstm_phi_10) - np.array(ref_phi)
-
-error_lstm_theta_01 = np.array(lstm_theta_01) - np.array(ref_theta)
-error_lstm_theta_02 = np.array(lstm_theta_02) - np.array(ref_theta)
-error_lstm_theta_03 = np.array(lstm_theta_03) - np.array(ref_theta)
-error_lstm_theta_04 = np.array(lstm_theta_04) - np.array(ref_theta)
-error_lstm_theta_05 = np.array(lstm_theta_05) - np.array(ref_theta)
-error_lstm_theta_06 = np.array(lstm_theta_06) - np.array(ref_theta)
-error_lstm_theta_07 = np.array(lstm_theta_07) - np.array(ref_theta)
-error_lstm_theta_08 = np.array(lstm_theta_08) - np.array(ref_theta)
-error_lstm_theta_09 = np.array(lstm_theta_09) - np.array(ref_theta)
-error_lstm_theta_10 = np.array(lstm_theta_10) - np.array(ref_theta)
-
-error_lstm_psi_01 = np.array(lstm_psi_01) - np.array(ref_psi)
-error_lstm_psi_02 = np.array(lstm_psi_02) - np.array(ref_psi)
-error_lstm_psi_03 = np.array(lstm_psi_03) - np.array(ref_psi)
-error_lstm_psi_04 = np.array(lstm_psi_04) - np.array(ref_psi)
-error_lstm_psi_05 = np.array(lstm_psi_05) - np.array(ref_psi)
-error_lstm_psi_06 = np.array(lstm_psi_06) - np.array(ref_psi)
-error_lstm_psi_07 = np.array(lstm_psi_07) - np.array(ref_psi)
-error_lstm_psi_08 = np.array(lstm_psi_08) - np.array(ref_psi)
-error_lstm_psi_09 = np.array(lstm_psi_09) - np.array(ref_psi)
-error_lstm_psi_10 = np.array(lstm_psi_10) - np.array(ref_psi)
-
-error_gru_phi_01 = np.array(gru_phi_01) - np.array(ref_phi)
-error_gru_phi_02 = np.array(gru_phi_02) - np.array(ref_phi)
-error_gru_phi_03 = np.array(gru_phi_03) - np.array(ref_phi)
-error_gru_phi_04 = np.array(gru_phi_04) - np.array(ref_phi)
-error_gru_phi_05 = np.array(gru_phi_05) - np.array(ref_phi)
-error_gru_phi_06 = np.array(gru_phi_06) - np.array(ref_phi)
-error_gru_phi_07 = np.array(gru_phi_07) - np.array(ref_phi)
-error_gru_phi_08 = np.array(gru_phi_08) - np.array(ref_phi)
-error_gru_phi_09 = np.array(gru_phi_09) - np.array(ref_phi)
-error_gru_phi_10 = np.array(gru_phi_10) - np.array(ref_phi)
-
-error_gru_theta_01 = np.array(gru_theta_01) - np.array(ref_theta)
-error_gru_theta_02 = np.array(gru_theta_02) - np.array(ref_theta)
-error_gru_theta_03 = np.array(gru_theta_03) - np.array(ref_theta)
-error_gru_theta_04 = np.array(gru_theta_04) - np.array(ref_theta)
-error_gru_theta_05 = np.array(gru_theta_05) - np.array(ref_theta)
-error_gru_theta_06 = np.array(gru_theta_06) - np.array(ref_theta)
-error_gru_theta_07 = np.array(gru_theta_07) - np.array(ref_theta)
-error_gru_theta_08 = np.array(gru_theta_08) - np.array(ref_theta)
-error_gru_theta_09 = np.array(gru_theta_09) - np.array(ref_theta)
-error_gru_theta_10 = np.array(gru_theta_10) - np.array(ref_theta)
-
-error_gru_psi_01 = np.array(gru_psi_01) - np.array(ref_psi)
-error_gru_psi_02 = np.array(gru_psi_02) - np.array(ref_psi)
-error_gru_psi_03 = np.array(gru_psi_03) - np.array(ref_psi)
-error_gru_psi_04 = np.array(gru_psi_04) - np.array(ref_psi)
-error_gru_psi_05 = np.array(gru_psi_05) - np.array(ref_psi)
-error_gru_psi_06 = np.array(gru_psi_06) - np.array(ref_psi)
-error_gru_psi_07 = np.array(gru_psi_07) - np.array(ref_psi)
-error_gru_psi_08 = np.array(gru_psi_08) - np.array(ref_psi)
-error_gru_psi_09 = np.array(gru_psi_09) - np.array(ref_psi)
-error_gru_psi_10 = np.array(gru_psi_10) - np.array(ref_psi)
-
-# file = open("D1_errors_report.csv", mode="w")
-# file.write("error_id,min,max,lstm_phi_1_lp,lstm_theta_1_lp,lstm_psi_1_lp,lstm_phi_2_lp,lstm_theta_2_lp,lstm_psi_2_lp,lstm_phi_3_lp,lstm_theta_3_lp,lstm_psi_3_lp\n")
-
-print('-----------------------------')
-print('Error reports LSTM PHI ALL')
-print('error_lstm_all_phi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_01), np.max(error_lstm_all_phi_01), np.mean(error_lstm_all_phi_01), np.std(error_lstm_all_phi_01)))
-print('error_lstm_all_phi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_02), np.max(error_lstm_all_phi_02), np.mean(error_lstm_all_phi_02), np.std(error_lstm_all_phi_02)))
-print('error_lstm_all_phi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_03), np.max(error_lstm_all_phi_03), np.mean(error_lstm_all_phi_03), np.std(error_lstm_all_phi_03)))
-print('error_lstm_all_phi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_04), np.max(error_lstm_all_phi_04), np.mean(error_lstm_all_phi_04), np.std(error_lstm_all_phi_04)))
-print('error_lstm_all_phi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_05), np.max(error_lstm_all_phi_05), np.mean(error_lstm_all_phi_05), np.std(error_lstm_all_phi_05)))
-print('error_lstm_all_phi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_06), np.max(error_lstm_all_phi_06), np.mean(error_lstm_all_phi_06), np.std(error_lstm_all_phi_06)))
-print('error_lstm_all_phi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_07), np.max(error_lstm_all_phi_07), np.mean(error_lstm_all_phi_07), np.std(error_lstm_all_phi_07)))
-print('error_lstm_all_phi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_08), np.max(error_lstm_all_phi_08), np.mean(error_lstm_all_phi_08), np.std(error_lstm_all_phi_08)))
-print('error_lstm_all_phi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_09), np.max(error_lstm_all_phi_09), np.mean(error_lstm_all_phi_09), np.std(error_lstm_all_phi_09)))
-print('error_lstm_all_phi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_phi_10), np.max(error_lstm_all_phi_10), np.mean(error_lstm_all_phi_10), np.std(error_lstm_all_phi_10)))
-print('-----------------------------')
-print('Error reports LSTM PHI DEDICATED')
-print('error_lstm_phi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_01), np.max(error_lstm_phi_01), np.mean(error_lstm_phi_01), np.std(error_lstm_phi_01)))
-print('error_lstm_phi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_02), np.max(error_lstm_phi_02), np.mean(error_lstm_phi_02), np.std(error_lstm_phi_02)))
-print('error_lstm_phi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_03), np.max(error_lstm_phi_03), np.mean(error_lstm_phi_03), np.std(error_lstm_phi_03)))
-print('error_lstm_phi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_04), np.max(error_lstm_phi_04), np.mean(error_lstm_phi_04), np.std(error_lstm_phi_04)))
-print('error_lstm_phi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_05), np.max(error_lstm_phi_05), np.mean(error_lstm_phi_05), np.std(error_lstm_phi_05)))
-print('error_lstm_phi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_06), np.max(error_lstm_phi_06), np.mean(error_lstm_phi_06), np.std(error_lstm_phi_06)))
-print('error_lstm_phi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_07), np.max(error_lstm_phi_07), np.mean(error_lstm_phi_07), np.std(error_lstm_phi_07)))
-print('error_lstm_phi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_08), np.max(error_lstm_phi_08), np.mean(error_lstm_phi_08), np.std(error_lstm_phi_08)))
-print('error_lstm_phi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_09), np.max(error_lstm_phi_09), np.mean(error_lstm_phi_09), np.std(error_lstm_phi_09)))
-print('error_lstm_phi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_phi_10), np.max(error_lstm_phi_10), np.mean(error_lstm_phi_10), np.std(error_lstm_all_phi_10)))
-print('-----------------------------')
-print('Error reports LSTM THETA ALL')
-print('error_lstm_all_theta_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_01), np.max(error_lstm_all_theta_01), np.mean(error_lstm_all_theta_01), np.std(error_lstm_all_theta_01)))
-print('error_lstm_all_theta_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_02), np.max(error_lstm_all_theta_02), np.mean(error_lstm_all_theta_02), np.std(error_lstm_all_theta_02)))
-print('error_lstm_all_theta_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_03), np.max(error_lstm_all_theta_03), np.mean(error_lstm_all_theta_03), np.std(error_lstm_all_theta_03)))
-print('error_lstm_all_theta_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_04), np.max(error_lstm_all_theta_04), np.mean(error_lstm_all_theta_04), np.std(error_lstm_all_theta_04)))
-print('error_lstm_all_theta_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_05), np.max(error_lstm_all_theta_05), np.mean(error_lstm_all_theta_05), np.std(error_lstm_all_theta_05)))
-print('error_lstm_all_theta_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_06), np.max(error_lstm_all_theta_06), np.mean(error_lstm_all_theta_06), np.std(error_lstm_all_theta_06)))
-print('error_lstm_all_theta_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_07), np.max(error_lstm_all_theta_07), np.mean(error_lstm_all_theta_07), np.std(error_lstm_all_theta_07)))
-print('error_lstm_all_theta_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_08), np.max(error_lstm_all_theta_08), np.mean(error_lstm_all_theta_08), np.std(error_lstm_all_theta_08)))
-print('error_lstm_all_theta_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_09), np.max(error_lstm_all_theta_09), np.mean(error_lstm_all_theta_09), np.std(error_lstm_all_theta_09)))
-print('error_lstm_all_theta_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_theta_10), np.max(error_lstm_all_theta_10), np.mean(error_lstm_all_theta_10), np.std(error_lstm_all_theta_10)))
-print('-----------------------------')
-print('Error reports LSTM THETA DEDICATED')
-print('error_lstm_theta_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_01), np.max(error_lstm_theta_01), np.mean(error_lstm_theta_01), np.std(error_lstm_theta_01)))
-print('error_lstm_theta_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_02), np.max(error_lstm_theta_02), np.mean(error_lstm_theta_02), np.std(error_lstm_theta_02)))
-print('error_lstm_theta_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_03), np.max(error_lstm_theta_03), np.mean(error_lstm_theta_03), np.std(error_lstm_theta_03)))
-print('error_lstm_theta_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_04), np.max(error_lstm_theta_04), np.mean(error_lstm_theta_04), np.std(error_lstm_theta_04)))
-print('error_lstm_theta_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_05), np.max(error_lstm_theta_05), np.mean(error_lstm_theta_05), np.std(error_lstm_theta_05)))
-print('error_lstm_theta_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_06), np.max(error_lstm_theta_06), np.mean(error_lstm_theta_06), np.std(error_lstm_theta_06)))
-print('error_lstm_theta_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_07), np.max(error_lstm_theta_07), np.mean(error_lstm_theta_07), np.std(error_lstm_theta_07)))
-print('error_lstm_theta_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_08), np.max(error_lstm_theta_08), np.mean(error_lstm_theta_08), np.std(error_lstm_theta_08)))
-print('error_lstm_theta_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_09), np.max(error_lstm_theta_09), np.mean(error_lstm_theta_09), np.std(error_lstm_theta_09)))
-print('error_lstm_theta_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_theta_10), np.max(error_lstm_theta_10), np.mean(error_lstm_theta_10), np.std(error_lstm_theta_10)))
-print('-----------------------------')
-print('Error reports LSTM PSI ALL')
-print('error_lstm_all_psi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_01), np.max(error_lstm_all_psi_01), np.mean(error_lstm_all_psi_01), np.std(error_lstm_all_psi_01)))
-print('error_lstm_all_psi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_02), np.max(error_lstm_all_psi_02), np.mean(error_lstm_all_psi_02), np.std(error_lstm_all_psi_02)))
-print('error_lstm_all_psi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_03), np.max(error_lstm_all_psi_03), np.mean(error_lstm_all_psi_03), np.std(error_lstm_all_psi_03)))
-print('error_lstm_all_psi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_04), np.max(error_lstm_all_psi_04), np.mean(error_lstm_all_psi_04), np.std(error_lstm_all_psi_04)))
-print('error_lstm_all_psi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_05), np.max(error_lstm_all_psi_05), np.mean(error_lstm_all_psi_05), np.std(error_lstm_all_psi_05)))
-print('error_lstm_all_psi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_06), np.max(error_lstm_all_psi_06), np.mean(error_lstm_all_psi_06), np.std(error_lstm_all_psi_06)))
-print('error_lstm_all_psi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_07), np.max(error_lstm_all_psi_07), np.mean(error_lstm_all_psi_07), np.std(error_lstm_all_psi_07)))
-print('error_lstm_all_psi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_08), np.max(error_lstm_all_psi_08), np.mean(error_lstm_all_psi_08), np.std(error_lstm_all_psi_08)))
-print('error_lstm_all_psi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_09), np.max(error_lstm_all_psi_09), np.mean(error_lstm_all_psi_09), np.std(error_lstm_all_psi_09)))
-print('error_lstm_all_psi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_all_psi_10), np.max(error_lstm_all_psi_10), np.mean(error_lstm_all_psi_10), np.std(error_lstm_all_psi_10)))
-print('-----------------------------')
-print('Error reports LSTM PSI DEDICATED')
-print('error_lstm_psi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_01), np.max(error_lstm_psi_01), np.mean(error_lstm_psi_01), np.std(error_lstm_psi_01)))
-print('error_lstm_psi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_02), np.max(error_lstm_psi_02), np.mean(error_lstm_psi_02), np.std(error_lstm_psi_02)))
-print('error_lstm_psi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_03), np.max(error_lstm_psi_03), np.mean(error_lstm_psi_03), np.std(error_lstm_psi_03)))
-print('error_lstm_psi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_04), np.max(error_lstm_psi_04), np.mean(error_lstm_psi_04), np.std(error_lstm_psi_04)))
-print('error_lstm_psi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_05), np.max(error_lstm_psi_05), np.mean(error_lstm_psi_05), np.std(error_lstm_psi_05)))
-print('error_lstm_psi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_06), np.max(error_lstm_psi_06), np.mean(error_lstm_psi_06), np.std(error_lstm_psi_06)))
-print('error_lstm_psi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_07), np.max(error_lstm_psi_07), np.mean(error_lstm_psi_07), np.std(error_lstm_psi_07)))
-print('error_lstm_psi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_08), np.max(error_lstm_psi_08), np.mean(error_lstm_psi_08), np.std(error_lstm_psi_08)))
-print('error_lstm_psi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_09), np.max(error_lstm_psi_09), np.mean(error_lstm_psi_09), np.std(error_lstm_psi_09)))
-print('error_lstm_psi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_lstm_psi_10), np.max(error_lstm_psi_10), np.mean(error_lstm_psi_10), np.std(error_lstm_theta_10)))
-
-print('-----------------------------')
-print('Error reports GRU PHI ALL')
-print('error_gru_all_phi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_01), np.max(error_gru_all_phi_01), np.mean(error_gru_all_phi_01), np.std(error_gru_all_phi_01)))
-print('error_gru_all_phi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_02), np.max(error_gru_all_phi_02), np.mean(error_gru_all_phi_02), np.std(error_gru_all_phi_02)))
-print('error_gru_all_phi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_03), np.max(error_gru_all_phi_03), np.mean(error_gru_all_phi_03), np.std(error_gru_all_phi_03)))
-print('error_gru_all_phi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_04), np.max(error_gru_all_phi_04), np.mean(error_gru_all_phi_04), np.std(error_gru_all_phi_04)))
-print('error_gru_all_phi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_05), np.max(error_gru_all_phi_05), np.mean(error_gru_all_phi_05), np.std(error_gru_all_phi_05)))
-print('error_gru_all_phi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_06), np.max(error_gru_all_phi_06), np.mean(error_gru_all_phi_06), np.std(error_gru_all_phi_06)))
-print('error_gru_all_phi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_07), np.max(error_gru_all_phi_07), np.mean(error_gru_all_phi_07), np.std(error_gru_all_phi_07)))
-print('error_gru_all_phi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_08), np.max(error_gru_all_phi_08), np.mean(error_gru_all_phi_08), np.std(error_gru_all_phi_08)))
-print('error_gru_all_phi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_09), np.max(error_gru_all_phi_09), np.mean(error_gru_all_phi_09), np.std(error_gru_all_phi_09)))
-print('error_gru_all_phi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_phi_10), np.max(error_gru_all_phi_10), np.mean(error_gru_all_phi_10), np.std(error_gru_all_phi_10)))
-print('-----------------------------')
-print('Error reports GRU PHI DEDICATED')
-print('error_gru_phi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_01), np.max(error_gru_phi_01), np.mean(error_gru_phi_01), np.std(error_gru_phi_01)))
-print('error_gru_phi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_02), np.max(error_gru_phi_02), np.mean(error_gru_phi_02), np.std(error_gru_phi_02)))
-print('error_gru_phi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_03), np.max(error_gru_phi_03), np.mean(error_gru_phi_03), np.std(error_gru_phi_03)))
-print('error_gru_phi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_04), np.max(error_gru_phi_04), np.mean(error_gru_phi_04), np.std(error_gru_phi_04)))
-print('error_gru_phi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_05), np.max(error_gru_phi_05), np.mean(error_gru_phi_05), np.std(error_gru_phi_05)))
-print('error_gru_phi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_06), np.max(error_gru_phi_06), np.mean(error_gru_phi_06), np.std(error_gru_phi_06)))
-print('error_gru_phi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_07), np.max(error_gru_phi_07), np.mean(error_gru_phi_07), np.std(error_gru_phi_07)))
-print('error_gru_phi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_08), np.max(error_gru_phi_08), np.mean(error_gru_phi_08), np.std(error_gru_phi_08)))
-print('error_gru_phi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_09), np.max(error_gru_phi_09), np.mean(error_gru_phi_09), np.std(error_gru_phi_09)))
-print('error_gru_phi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_phi_10), np.max(error_gru_phi_10), np.mean(error_gru_phi_10), np.std(error_gru_all_phi_10)))
-print('-----------------------------')
-print('Error reports GRU THETA ALL')
-print('error_gru_all_theta_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_01), np.max(error_gru_all_theta_01), np.mean(error_gru_all_theta_01), np.std(error_gru_all_theta_01)))
-print('error_gru_all_theta_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_02), np.max(error_gru_all_theta_02), np.mean(error_gru_all_theta_02), np.std(error_gru_all_theta_02)))
-print('error_gru_all_theta_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_03), np.max(error_gru_all_theta_03), np.mean(error_gru_all_theta_03), np.std(error_gru_all_theta_03)))
-print('error_gru_all_theta_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_04), np.max(error_gru_all_theta_04), np.mean(error_gru_all_theta_04), np.std(error_gru_all_theta_04)))
-print('error_gru_all_theta_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_05), np.max(error_gru_all_theta_05), np.mean(error_gru_all_theta_05), np.std(error_gru_all_theta_05)))
-print('error_gru_all_theta_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_06), np.max(error_gru_all_theta_06), np.mean(error_gru_all_theta_06), np.std(error_gru_all_theta_06)))
-print('error_gru_all_theta_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_07), np.max(error_gru_all_theta_07), np.mean(error_gru_all_theta_07), np.std(error_gru_all_theta_07)))
-print('error_gru_all_theta_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_08), np.max(error_gru_all_theta_08), np.mean(error_gru_all_theta_08), np.std(error_gru_all_theta_08)))
-print('error_gru_all_theta_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_09), np.max(error_gru_all_theta_09), np.mean(error_gru_all_theta_09), np.std(error_gru_all_theta_09)))
-print('error_gru_all_theta_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_theta_10), np.max(error_gru_all_theta_10), np.mean(error_gru_all_theta_10), np.std(error_gru_all_theta_10)))
-print('-----------------------------')
-print('Error reports GRU THETA DEDICATED')
-print('error_gru_theta_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_01), np.max(error_gru_theta_01), np.mean(error_gru_theta_01), np.std(error_gru_theta_01)))
-print('error_gru_theta_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_02), np.max(error_gru_theta_02), np.mean(error_gru_theta_02), np.std(error_gru_theta_02)))
-print('error_gru_theta_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_03), np.max(error_gru_theta_03), np.mean(error_gru_theta_03), np.std(error_gru_theta_03)))
-print('error_gru_theta_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_04), np.max(error_gru_theta_04), np.mean(error_gru_theta_04), np.std(error_gru_theta_04)))
-print('error_gru_theta_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_05), np.max(error_gru_theta_05), np.mean(error_gru_theta_05), np.std(error_gru_theta_05)))
-print('error_gru_theta_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_06), np.max(error_gru_theta_06), np.mean(error_gru_theta_06), np.std(error_gru_theta_06)))
-print('error_gru_theta_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_07), np.max(error_gru_theta_07), np.mean(error_gru_theta_07), np.std(error_gru_theta_07)))
-print('error_gru_theta_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_08), np.max(error_gru_theta_08), np.mean(error_gru_theta_08), np.std(error_gru_theta_08)))
-print('error_gru_theta_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_09), np.max(error_gru_theta_09), np.mean(error_gru_theta_09), np.std(error_gru_theta_09)))
-print('error_gru_theta_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_theta_10), np.max(error_gru_theta_10), np.mean(error_gru_theta_10), np.std(error_gru_theta_10)))
-print('-----------------------------')
-print('Error reports GRU PSI ALL')
-print('error_gru_all_psi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_01), np.max(error_gru_all_psi_01), np.mean(error_gru_all_psi_01), np.std(error_gru_all_psi_01)))
-print('error_gru_all_psi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_02), np.max(error_gru_all_psi_02), np.mean(error_gru_all_psi_02), np.std(error_gru_all_psi_02)))
-print('error_gru_all_psi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_03), np.max(error_gru_all_psi_03), np.mean(error_gru_all_psi_03), np.std(error_gru_all_psi_03)))
-print('error_gru_all_psi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_04), np.max(error_gru_all_psi_04), np.mean(error_gru_all_psi_04), np.std(error_gru_all_psi_04)))
-print('error_gru_all_psi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_05), np.max(error_gru_all_psi_05), np.mean(error_gru_all_psi_05), np.std(error_gru_all_psi_05)))
-print('error_gru_all_psi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_06), np.max(error_gru_all_psi_06), np.mean(error_gru_all_psi_06), np.std(error_gru_all_psi_06)))
-print('error_gru_all_psi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_07), np.max(error_gru_all_psi_07), np.mean(error_gru_all_psi_07), np.std(error_gru_all_psi_07)))
-print('error_gru_all_psi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_08), np.max(error_gru_all_psi_08), np.mean(error_gru_all_psi_08), np.std(error_gru_all_psi_08)))
-print('error_gru_all_psi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_09), np.max(error_gru_all_psi_09), np.mean(error_gru_all_psi_09), np.std(error_gru_all_psi_09)))
-print('error_gru_all_psi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_all_psi_10), np.max(error_gru_all_psi_10), np.mean(error_gru_all_psi_10), np.std(error_gru_all_psi_10)))
-print('-----------------------------')
-print('Error reports GRU PSI DEDICATED')
-print('error_gru_psi_01: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_01), np.max(error_gru_psi_01), np.mean(error_gru_psi_01), np.std(error_gru_psi_01)))
-print('error_gru_psi_02: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_02), np.max(error_gru_psi_02), np.mean(error_gru_psi_02), np.std(error_gru_psi_02)))
-print('error_gru_psi_03: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_03), np.max(error_gru_psi_03), np.mean(error_gru_psi_03), np.std(error_gru_psi_03)))
-print('error_gru_psi_04: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_04), np.max(error_gru_psi_04), np.mean(error_gru_psi_04), np.std(error_gru_psi_04)))
-print('error_gru_psi_05: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_05), np.max(error_gru_psi_05), np.mean(error_gru_psi_05), np.std(error_gru_psi_05)))
-print('error_gru_psi_06: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_06), np.max(error_gru_psi_06), np.mean(error_gru_psi_06), np.std(error_gru_psi_06)))
-print('error_gru_psi_07: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_07), np.max(error_gru_psi_07), np.mean(error_gru_psi_07), np.std(error_gru_psi_07)))
-print('error_gru_psi_08: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_08), np.max(error_gru_psi_08), np.mean(error_gru_psi_08), np.std(error_gru_psi_08)))
-print('error_gru_psi_09: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_09), np.max(error_gru_psi_09), np.mean(error_gru_psi_09), np.std(error_gru_psi_09)))
-print('error_gru_psi_10: Min {}. Max: {}. Mean: {}. Std: {}'.format(np.min(error_gru_psi_10), np.max(error_gru_psi_10), np.mean(error_gru_psi_10), np.std(error_gru_theta_10)))
-
-
